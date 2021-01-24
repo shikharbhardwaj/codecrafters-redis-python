@@ -1,6 +1,7 @@
+from typing import List
 
 
-def ping(rest: list[str], *args, **kwargs) -> str:
+def ping(rest: List[str], *args, **kwargs) -> str:
     if not rest:
         return "PONG"
     else:
