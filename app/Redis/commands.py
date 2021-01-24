@@ -28,7 +28,7 @@ def set(rest: List[str], *args, **kwargs) -> bytes:
 
     key, val = rest[0], rest[1]
 
-    if len(rest) == 4 and rest[2] == 'PX':
+    if len(rest) == 4 and rest[2].lower() == 'px':
         # We need to set expiry as well
         offset = int(rest[3])
         expiry_time[key] = time.time() + offset / 1000
