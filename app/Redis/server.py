@@ -90,9 +90,7 @@ def exec_command(request_data: bytes) -> bytes:
 
         command = get_all_commands()[command_string.lower()]
 
-        resp: str = command(rest)
-
-        return encode_ok_response(resp)
+        return command(rest)
     except UnicodeDecodeError as e:
         logging.exception("Could not decode request data, exception:", exc_info=e)
 

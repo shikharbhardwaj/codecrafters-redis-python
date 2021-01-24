@@ -10,7 +10,7 @@ def is_windows():
 # "$6\r\nfoobar\r\n"
 # "*1\r\n$4\r\nping\r\n"
 # "*2\r\n$4\r\nECHO\r\n$3\r\nhey\r\n"
-#
+# "*3\r\n$3\r\nSET\r\n$3\r\nhey\r\n$2\r\n42\r\n"
 
 REQUEST_DELIM: str = '\r\n'
 
@@ -45,8 +45,13 @@ def decode_request(request_str: str) -> Tuple[Union[List[str], str], int]:
         return request_str[str_start_idx:str_end_idx], str_end_idx + len(REQUEST_DELIM)
 
 
-def encode_ok_response(resp: str) -> bytes:
-    return f"+{resp}\r\n".encode()
+def encode_ok_response(resp: str, bulk_str = False) -> bytes:
+    if not resp:
+        return"$-1\r\n".encode()
+    elif bulk_str:
+        return f"${len(resp)}{REQUEST_DELIM}{resp}{REQUEST_DELIM}".encode()
+    else:
+        return f"+{resp}\r\n".encode()
 
 
 def encode_error_response(resp: str) -> bytes:
