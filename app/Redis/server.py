@@ -5,10 +5,10 @@ import types
 from functools import lru_cache
 from inspect import getmembers, isfunction
 import selectors
-from typing import Dict
+from typing import Dict, List
 
 from app.Redis import commands
-from app.Redis.utils import is_windows, encode_ok_response, encode_error_response
+from app.Redis.utils import is_windows, encode_ok_response, encode_error_response, decode_request
 
 HOST = os.environ.get("REDIS_HOST", "localhost")
 LISTEN_PORT = int(os.environ.get("REDIS_LISTEN_PORT", 6379))
@@ -60,14 +60,7 @@ def service_connection(key, mask: int):
 
         if recv_data:
             logging.debug("Received data of size: ", len(recv_data))
-            responses = []
-
-            for chunk in recv_data.split(b'\r\n'):
-                if not chunk:
-                    continue
-                responses.append(exec_command(chunk))
-
-            data.outb += b''.join(responses)
+            data.outb += exec_command(recv_data)
         else:
             logging.info("Closing connection to: ", data.addr)
             sel.unregister(conn)
@@ -87,15 +80,17 @@ def get_all_commands() -> Dict[str, object]:
     return {x[0]: x[1] for x in command_list}
 
 
-def exec_command(data: bytes) -> bytes:
+def exec_command(request_data: bytes) -> bytes:
     try:
-        data_str: str = data.decode()
+        data_str: str = request_data.decode()
 
-        rest: list[str] = []
-        command_string, *rest = data_str.split(' ')
+        request_list: List[str] = decode_request(data_str)
 
-        # TODO: Make this select commands from the command string.
-        resp: str = commands.ping(rest)
+        command_string, *rest = request_list
+
+        command = get_all_commands()[command_string.lower()]
+
+        resp: str = command(rest)
 
         return encode_ok_response(resp)
     except UnicodeDecodeError as e:
