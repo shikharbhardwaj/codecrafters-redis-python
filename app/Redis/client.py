@@ -8,7 +8,7 @@ LISTEN_PORT = int(os.environ.get("REDIS_LISTEN_PORT", 6379))
 
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     s.connect((HOST, LISTEN_PORT))
-    s.sendall(b'PING Something')
+    s.sendall(b'*1\r\n$4\r\nping\r\n')
     data = s.recv(1024)
 
 print('Received', repr(data))

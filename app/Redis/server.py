@@ -20,12 +20,19 @@ def listen():
         while True:
             conn, addr = s.accept()
             with conn:
-                print('Connected by', addr)
+                logging.info('Connected by', addr)
                 while True:
                     data = conn.recv(1024)
+                    logging.debug("Recieved data of size: ", len(data))
                     if not data:
                         break
-                    conn.sendall(exec_command(data))
+
+                    responses = []
+
+                    for chunk in data.split(b'\r\n'):
+                        responses.append(exec_command(chunk))
+
+                    conn.sendall(b''.join(responses))
 
 
 @lru_cache
