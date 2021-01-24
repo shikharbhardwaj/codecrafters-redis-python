@@ -1,8 +1,10 @@
 import logging
 import os
 import socket
+import types
 from functools import lru_cache
 from inspect import getmembers, isfunction
+import selectors
 from typing import Dict
 
 from app.Redis import commands
@@ -12,29 +14,70 @@ HOST = os.environ.get("REDIS_HOST", "localhost")
 LISTEN_PORT = int(os.environ.get("REDIS_LISTEN_PORT", 6379))
 REUSE_PORT = not is_windows()
 
+sel = selectors.DefaultSelector()
+
 
 def listen():
-    with socket.create_server((HOST, LISTEN_PORT), reuse_port=REUSE_PORT) as s:
-        s.listen()
+    with socket.create_server((HOST, LISTEN_PORT), reuse_port=REUSE_PORT) as sock:
+        sock.listen()
+        logging.info('Listening on ', (HOST, LISTEN_PORT))
 
+        sock.setblocking(False)
+        sel.register(sock, selectors.EVENT_READ, data=None)
+
+        # Main event loop
         while True:
-            conn, addr = s.accept()
-            with conn:
-                logging.info('Connected by', addr)
-                while True:
-                    data = conn.recv(1024)
-                    logging.debug("Recieved data of size: ", len(data))
-                    if not data:
-                        break
+            events = sel.select(timeout=None)
 
-                    responses = []
+            # Register functions (accept and service connections)
+            for key, mask in events:
+                if key.data is None:
+                    accept_wrapper(key.fileobj)
+                else:
+                    service_connection(key, mask)
 
-                    for chunk in data.split(b'\r\n'):
-                        if not chunk:
-                            continue
-                        responses.append(exec_command(chunk))
 
-                    conn.sendall(b''.join(responses))
+def accept_wrapper(sock: socket):
+    conn, addr = sock.accept()
+
+    logging.info('Connected by', addr)
+
+    conn.setblocking(False)
+
+    data = types.SimpleNamespace(addr=addr, inb=b'', outb=b'')
+    events = selectors.EVENT_READ | selectors.EVENT_WRITE
+
+    sel.register(conn, events, data=data)
+
+
+def service_connection(key, mask: int):
+    conn = key.fileobj
+    data = key.data
+
+    if mask & selectors.EVENT_READ:
+        # TODO: Fix max request size limit here.
+        recv_data = conn.recv(1024)
+
+        if recv_data:
+            logging.debug("Received data of size: ", len(recv_data))
+            responses = []
+
+            for chunk in recv_data.split(b'\r\n'):
+                if not chunk:
+                    continue
+                responses.append(exec_command(chunk))
+
+            data.outb += b''.join(responses)
+        else:
+            logging.info("Closing connection to: ", data.addr)
+            sel.unregister(conn)
+            conn.close()
+    if mask & selectors.EVENT_WRITE:
+        if data.outb:
+            sent = conn.send(data.outb)
+            logging.debug("Sent data of size: ", len(data.outb))
+            data.outb = data.outb[sent:]
+
 
 
 @lru_cache
@@ -51,6 +94,7 @@ def exec_command(data: bytes) -> bytes:
         rest: list[str] = []
         command_string, *rest = data_str.split(' ')
 
+        # TODO: Make this select commands from the command string.
         resp: str = commands.ping(rest)
 
         return encode_ok_response(resp)
