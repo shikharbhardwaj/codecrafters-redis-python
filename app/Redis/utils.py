@@ -15,7 +15,7 @@ def is_windows():
 REQUEST_DELIM: str = '\r\n'
 
 
-def decode_request(request_str: str) -> Tuple[Union[list[str], str], int]:
+def decode_request(request_str: str) -> Tuple[Union[List[str], str], int]:
     if request_str[0] == '*':
         # RESP array
         len_idx = request_str.find(REQUEST_DELIM)
