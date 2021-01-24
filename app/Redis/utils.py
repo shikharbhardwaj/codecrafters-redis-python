@@ -1,7 +1,13 @@
 import os
 
+
 def is_windows():
     return os.name == 'nt'
 
-def get_command(data:bytes):
-    NotImplemented("Need logic to dynamically fetch commnads.")
+
+def encode_ok_response(resp: str) -> bytes:
+    return f"+{resp}\r\n".encode()
+
+
+def encode_error_response(resp: str) -> bytes:
+    return f"-{resp}\r\n".encode()
