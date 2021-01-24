@@ -1,13 +1,8 @@
-import socket
-
-from app import utils
+from app.Redis.server import listen
 
 
 def main():
-    reuse_port:bool = not utils.is_windows()
-    s = socket.create_server(("localhost", 6379), reuse_port=reuse_port)
-
-    s.accept()  # wait for client
+    listen()
 
 
 if __name__ == "__main__":
