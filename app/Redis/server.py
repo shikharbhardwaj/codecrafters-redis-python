@@ -30,6 +30,8 @@ def listen():
                     responses = []
 
                     for chunk in data.split(b'\r\n'):
+                        if not chunk:
+                            continue
                         responses.append(exec_command(chunk))
 
                     conn.sendall(b''.join(responses))
@@ -49,7 +51,7 @@ def exec_command(data: bytes) -> bytes:
         rest: list[str] = []
         command_string, *rest = data_str.split(' ')
 
-        resp: str = get_all_commands()[command_string.lower()](rest)
+        resp: str = commands.ping(rest)
 
         return encode_ok_response(resp)
     except UnicodeDecodeError as e:
